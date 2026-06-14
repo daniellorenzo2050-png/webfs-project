@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WebOS File Manager Pro App - Editor de código completo">
+    <title>WebOS File Manager Pro - Aplicativo</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --surface: #ffffff;
+            --primary: #0d6efd;
+            --text-main: #333;
+            --border-color: #e0e0e0;
+        }
+
+        body { 
+            background-color: var(--bg-color); 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .topbar { background-color: #1a1d20; color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 999; }
+        .topbar-info { font-size: 12px; opacity: 0.7; margin-left: auto; margin-right: 15px; }
+        .topbar-back { cursor: pointer; transition: all 0.3s; color: white; text-decoration: none; }
+        .topbar-back:hover { opacity: 0.7; }
+        .toolbar { background-color: var(--surface); padding: 12px 24px; border-bottom: 1px solid var(--border-color); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        
+        .breadcrumb-nav { background: #e9ecef; padding: 6px 15px; border-radius: 20px; font-size: 14px; display: flex; align-items: center; gap: 5px; overflow-x: auto; flex: 1;}
+        .breadcrumb-item { cursor: pointer; color: var(--primary); font-weight: 500; transition: 0.2s;}
+        .breadcrumb-item:hover { text-decoration: underline; }
+        .breadcrumb-separator { color: #6c757d; font-size: 12px; }
+
+        .file-list { flex: 1; overflow-y: auto; padding: 24px; }
+        .item { 
+            display: flex; align-items: center; padding: 12px 20px; background: var(--surface); 
+            margin-bottom: 8px; border-radius: 12px; border: 1px solid transparent;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03); cursor: pointer; transition: all 0.2s; 
+        }
+        .item:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13,110,253,0.1); }
+        .item-icon { font-size: 24px; margin-right: 18px; width: 30px; text-align: center; }
+        .item-name { flex: 1; font-weight: 500; word-break: break-all; color: var(--text-main); font-size: 15px;}
+        .item-actions { display: flex; gap: 8px; opacity: 0.7; transition: 0.2s; }
+        .item:hover .item-actions { opacity: 1; }
+        
+        .fullscreen-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg-color); z-index: 1050; flex-direction: column; animation: fadeIn 0.2s ease-out; }
+        .modal-header { background: #1a1d20; color: white; padding: 15px 24px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .CodeMirror { flex: 1; height: 100% !important; font-size: 15px; font-family: 'Fira Code', 'Consolas', monospace; }
+        
+        .browser-container { flex: 1; display: flex; flex-direction: column; background: #fff;}
+        .browser-address-bar { background: #f1f3f5; padding: 8px 15px; border-bottom: 1px solid #ddd; display: flex; align-items: center; font-family: monospace; color: #555;}
+        #browser-frame { flex: 1; width: 100%; border: none; background: #fff; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <div class="topbar">
+        <h5 class="m-0"><i class="fas fa-microchip text-primary"></i> WebOS <span class="fw-light">File Manager</span></h5>
+        <div class="topbar-info">
+            <span><i class="fas fa-cloud"></i> GitHub Pages App</span>
+        </div>
+        <a href="/" class="topbar-back ms-3" title="Voltar ao site principal">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+    </div>
+
+    <div class="toolbar">
+        <button class="btn btn-sm btn-light border" onclick="app.goUp()" id="btn-up" title="Subir um nível">
+            <i class="fas fa-level-up-alt"></i>
+        </button>
+        
+        <div class="breadcrumb-nav" id="breadcrumb-container"></div>
+
+        <button class="btn btn-sm btn-primary" onclick="app.createNew('folder')">
+            <i class="fas fa-folder-plus"></i> Nova Pasta
+        </button>
+        <button class="btn btn-sm btn-success" onclick="app.createNew('file')">
+            <i class="fas fa-file-circle-plus"></i> Novo Arquivo
+        </button>
+        <button class="btn btn-sm btn-outline-danger ms-2" onclick="app.resetFS()">
+            <i class="fas fa-power-off"></i> Reset
+        </button>
+    </div>
+
+    <div class="file-list" id="file-container"></div>
+
+    <div id="editor-modal" class="fullscreen-modal">
+        <div class="modal-header">
+            <h5 class="m-0" id="editor-title"><i class="fas fa-code"></i> Editando...</h5>
+            <div>
+                <button class="btn btn-sm btn-primary me-2" onclick="editorApp.saveFile()"><i class="fas fa-save"></i> Salvar (Ctrl+S)</button>
+                <button class="btn btn-sm btn-danger" onclick="editorApp.close()"><i class="fas fa-times"></i> Fechar</button>
+            </div>
+        </div>
+        <textarea id="code-editor"></textarea>
+    </div>
+
+    <div id="browser-modal" class="fullscreen-modal">
+        <div class="modal-header">
+            <h5 class="m-0"><i class="fas fa-globe"></i> Navegador</h5>
+            <button class="btn btn-sm btn-danger" onclick="browserApp.close()"><i class="fas fa-times"></i> Fechar</button>
+        </div>
+        <div class="browser-container">
+            <div class="browser-address-bar" id="browser-address">localhost://</div>
+            <iframe id="browser-frame" sandbox="allow-scripts allow-same-origin allow-modals"></iframe>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
+
+    <script>
+        class VirtualFS {
+            constructor() {
+                this.vfs = {};
+                this.defaultFS = {
+                    '/': { type: 'folder' },
+                    '/Exemplos': { type: 'folder' },
+                    '/Exemplos/hello.html': { 
+                        type: 'file', 
+                        content: '<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body {\n      font-family: sans-serif;\n      text-align: center;\n      padding: 50px;\n      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n      color: white;\n      margin: 0;\n    }\n  </style>\n</head>\n<body>\n  <h1>🚀 Bem-vindo ao WebOS!</h1>\n  <p>Crie, edite e execute seus projetos aqui!</p>\n</body>\n</html>'
+                    },
+                    '/Sistema': { type: 'folder' },
+                    '/Sistema/data': { type: 'folder' },
+                };
+            }
+
+            async init() {
+                localforage.config({ name: 'WebOS_Pro_GH', storeName: 'vfs' });
+                const saved = await localforage.getItem('vfs_data');
+                this.vfs = saved || this.defaultFS;
+                if (!this.vfs['/Sistema/data']) this.vfs['/Sistema/data'] = { type: 'folder' };
+                await this.save();
+            }
+
+            async save() { await localforage.setItem('vfs_data', this.vfs); }
+            async reset() { await localforage.removeItem('vfs_data'); location.reload(); }
+            exists(path) { return !!this.vfs[path]; }
+            async create(path, type, content = '') { this.vfs[path] = { type, content }; await this.save(); }
+            async remove(path) { Object.keys(this.vfs).forEach(k => { if (k === path || k.startsWith(path + '/')) delete this.vfs[k]; }); await this.save(); }
+            async rename(oldPath, newName) { const parent = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/'; const newPath = (parent === '/' ? '/' : parent + '/') + newName; if (this.exists(newPath)) throw new Error('Nome já existe.'); const itemType = this.vfs[oldPath].type; this.vfs[newPath] = { ...this.vfs[oldPath] }; if (itemType === 'folder') { Object.keys(this.vfs).forEach(k => { if (k.startsWith(oldPath + '/')) { const childNewPath = k.replace(oldPath, newPath); this.vfs[childNewPath] = { ...this.vfs[k] }; delete this.vfs[k]; } }); } delete this.vfs[oldPath]; await this.save(); }
+            getFile(path) { return this.vfs[path]; }
+        }
+
+        class AppUI {
+            constructor(fs) { this.fs = fs; this.currentPath = '/'; this.container = document.getElementById('file-container'); this.breadcrumb = document.getElementById('breadcrumb-container'); }
+            render() { this.renderBreadcrumb(); document.getElementById('btn-up').disabled = this.currentPath === '/'; this.container.innerHTML = ''; const items = Object.keys(this.fs.vfs).filter(path => { if (path === this.currentPath || path === '/') return false; const parentDir = path.substring(0, path.lastIndexOf('/')) || '/'; return parentDir === this.currentPath; }); if (items.length === 0) { this.container.innerHTML = `<div class="text-center text-muted mt-5" style="opacity: 0.5;"><i class="fas fa-folder-open fa-4x mb-3"></i><h4>Pasta Vazia</h4><p>Crie um arquivo ou pasta para começar.</p></div>`; return; } items.sort((a, b) => { const isFolderA = this.fs.vfs[a].type === 'folder'; const isFolderB = this.fs.vfs[b].type === 'folder'; if (isFolderA && !isFolderB) return -1; if (!isFolderA && isFolderB) return 1; return a.localeCompare(b); }); items.forEach(path => this.createItemDOM(path)); }
+            renderBreadcrumb() { const parts = this.currentPath.split('/').filter(Boolean); let html = `<span class="breadcrumb-item" onclick="app.navigateTo('/')"><i class="fas fa-hdd"></i> Raiz</span>`; let buildPath = ''; parts.forEach(part => { buildPath += '/' + part; html += `<span class="breadcrumb-separator"><i class="fas fa-chevron-right"></i></span><span class="breadcrumb-item" onclick="app.navigateTo('${buildPath}')">${part}</span>`; }); this.breadcrumb.innerHTML = html; }
+            createItemDOM(path) { const name = path.split('/').pop(); const fileData = this.fs.vfs[path]; const isFolder = fileData.type === 'folder'; let icon = isFolder ? 'fa-folder text-warning' : 'fa-file-alt text-secondary'; if (!isFolder) { if (name.endsWith('.html')) icon = 'fa-brands fa-html5 text-danger'; else if (name.endsWith('.css')) icon = 'fa-brands fa-css3-alt text-primary'; else if (name.endsWith('.js')) icon = 'fa-brands fa-js text-warning'; else if (name.endsWith('.json')) icon = 'fa-file-code text-success'; } const div = document.createElement('div'); div.className = 'item'; div.innerHTML = `<i class="fas ${icon} item-icon"></i><span class="item-name" onclick="app.handleItemClick('${path}')">${name}</span><div class="item-actions">${!isFolder && name.endsWith('.html') ? `<button class="btn btn-sm btn-success" onclick="browserApp.run('${path}')" title="Executar"><i class="fas fa-play"></i></button>` : ''}${!isFolder ? `<button class="btn btn-sm btn-outline-secondary" onclick="app.downloadFile('${path}')" title="Baixar"><i class="fas fa-download"></i></button>` : ''}<button class="btn btn-sm btn-outline-primary" onclick="app.renameItem('${path}')" title="Renomear"><i class="fas fa-pen"></i></button><button class="btn btn-sm btn-outline-danger" onclick="app.deleteItem('${path}')" title="Excluir"><i class="fas fa-trash"></i></button></div>`; this.container.appendChild(div); }
+            handleItemClick(path) { if (this.fs.vfs[path].type === 'folder') this.navigateTo(path); else editorApp.open(path); }
+            navigateTo(path) { this.currentPath = path; this.render(); }
+            goUp() { if (this.currentPath === '/') return; const parent = this.currentPath.substring(0, this.currentPath.lastIndexOf('/')) || '/'; this.navigateTo(parent); }
+            async createNew(type) { const { value: name } = await Swal.fire({ title: `Novo(a) ${type === 'folder' ? 'Pasta' : 'Arquivo'}`, input: 'text', inputPlaceholder: type === 'folder' ? 'Ex: Imagens' : 'Ex: script.js', showCancelButton: true, confirmButtonText: 'Criar' }); if (!name) return; const newPath = (this.currentPath === '/' ? '/' : this.currentPath + '/') + name; if (this.fs.exists(newPath)) { Swal.fire('Erro', 'Já existe um item com este nome.', 'error'); return; } await this.fs.create(newPath, type); this.render(); }
+            async renameItem(path) { const oldName = path.split('/').pop(); const { value: newName } = await Swal.fire({ title: 'Renomear', input: 'text', inputValue: oldName, showCancelButton: true }); if (newName && newName !== oldName) { try { await this.fs.rename(path, newName); this.render(); } catch (e) { Swal.fire('Erro', e.message, 'error'); } } }
+            async deleteItem(path) { const result = await Swal.fire({ title: 'Tem certeza?', text: `Você vai excluir '${path.split('/').pop()}' e todo seu conteúdo.`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sim, excluir!' }); if (result.isConfirmed) { await this.fs.remove(path); this.render(); } }
+            downloadFile(path) { const file = this.fs.getFile(path); const blob = new Blob([file.content], { type: 'text/plain' }); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = path.split('/').pop(); a.click(); window.URL.revokeObjectURL(url); }
+            async resetFS() { const result = await Swal.fire({ title: 'Resetar Sistema?', text: 'Isso apagará TODOS os arquivos e pastas!', icon: 'error', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Formatar' }); if (result.isConfirmed) this.fs.reset(); }
+        }
+
+        class EditorApp {
+            constructor(fs) { this.fs = fs; this.currentFile = ''; this.modal = document.getElementById('editor-modal'); this.editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), { lineNumbers: true, theme: "monokai", lineWrapping: true }); window.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's' && this.modal.style.display === 'flex') { e.preventDefault(); this.saveFile(); } }); }
+            setMode(filename) { if (filename.endsWith('.js') || filename.endsWith('.json')) this.editor.setOption('mode', 'javascript'); else if (filename.endsWith('.css')) this.editor.setOption('mode', 'css'); else this.editor.setOption('mode', 'htmlmixed'); }
+            open(path) { this.currentFile = path; const name = path.split('/').pop(); document.getElementById('editor-title').innerHTML = `<i class="fas fa-file-code"></i> ${name}`; this.setMode(name); this.editor.setValue(this.fs.getFile(path).content || ''); this.modal.style.display = 'flex'; setTimeout(() => this.editor.refresh(), 50); }
+            async saveFile() { if (!this.currentFile) return; const file = this.fs.getFile(this.currentFile); file.content = this.editor.getValue(); await this.fs.save(); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Arquivo salvo!', showConfirmButton: false, timer: 1500 }); }
+            close() { this.modal.style.display = 'none'; this.currentFile = ''; }
+        }
+
+        class BrowserApp {
+            constructor(fs) { this.fs = fs; this.modal = document.getElementById('browser-modal'); this.iframe = document.getElementById('browser-frame'); this.listenToStorage(); }
+            run(path) { const file = this.fs.getFile(path); if (!file) return; document.getElementById('browser-address').innerText = `webos://${path}`; const interceptScript = `<script>const virtualStorage = {}; Object.defineProperty(window, 'localStorage', { value: { getItem: (key) => virtualStorage.hasOwnProperty(key) ? virtualStorage[key] : null, setItem: (key, val) => { virtualStorage[key] = String(val); window.parent.postMessage({ type: 'vfs_storage_sync', key, val }, '*'); }, removeItem: (key) => { delete virtualStorage[key]; window.parent.postMessage({ type: 'vfs_storage_remove', key }, '*'); }, clear: () => { for(let k in virtualStorage) delete virtualStorage[k]; window.parent.postMessage({ type: 'vfs_storage_clear' }, '*'); } } }); window.addEventListener('message', (e) => { if (e.data.type === 'vfs_storage_init') Object.assign(virtualStorage, e.data.data); });<\/script>`; this.iframe.srcdoc = interceptScript + file.content; this.modal.style.display = 'flex'; this.iframe.onload = () => { let savedData = {}; const storageFile = this.fs.getFile('/Sistema/data/localStorage.json'); if (storageFile) { try { savedData = JSON.parse(storageFile.content); } catch(e) {} } this.iframe.contentWindow.postMessage({ type: 'vfs_storage_init', data: savedData }, '*'); }; }
+            close() { this.modal.style.display = 'none'; this.iframe.srcdoc = ''; }
+            listenToStorage() { window.addEventListener('message', async (e) => { if (!e.data?.type?.startsWith('vfs_storage')) return; let storageFile = this.fs.getFile('/Sistema/data/localStorage.json'); if (!storageFile) { await this.fs.create('/Sistema/data/localStorage.json', 'file', '{}'); storageFile = this.fs.getFile('/Sistema/data/localStorage.json'); } let data = {}; try { data = JSON.parse(storageFile.content); } catch(err) {} if (e.data.type === 'vfs_storage_sync') data[e.data.key] = e.data.val; else if (e.data.type === 'vfs_storage_remove') delete data[e.data.key]; else if (e.data.type === 'vfs_storage_clear') data = {}; storageFile.content = JSON.stringify(data); await this.fs.save(); }); }
+        }
+
+        const fs = new VirtualFS();
+        const app = new AppUI(fs);
+        const editorApp = new EditorApp(fs);
+        const browserApp = new BrowserApp(fs);
+
+        window.onload = async () => { await fs.init(); app.render(); };
+    </script>
+</body>
+</html>
