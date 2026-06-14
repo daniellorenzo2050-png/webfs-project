@@ -29,7 +29,7 @@
         }
 
         /* Header & Toolbar */
-        .topbar { background-color: #1a1d20; color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 10; }
+        .topbar { background-color: #1a1d20; color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 999; }
         .toolbar { background-color: var(--surface); padding: 12px 24px; border-bottom: 1px solid var(--border-color); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         
         /* Breadcrumb styling */
@@ -52,7 +52,7 @@
         .item:hover .item-actions { opacity: 1; }
         
         /* Modais */
-        .fullscreen-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg-color); z-index: 1050; flex-direction: column; animation: fadeIn 0.2s ease-out;}
+        .fullscreen-modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg-color); z-index: 1050; flex-direction: column; animation: fadeIn 0.2s ease-out; }
         .modal-header { background: #1a1d20; color: white; padding: 15px 24px; display: flex; justify-content: space-between; align-items: center; }
         
         /* CodeMirror Overrides */
@@ -138,7 +138,7 @@
                     '/Sistema/data': { type: 'folder' },
                     '/index.html': { 
                         type: 'file', 
-                        content: '<!DOCTYPE html>\n<html>\n<head>\n  <style>body{font-family:sans-serif; text-align:center; padding:50px;}</style>\n</head>\n<body>\n  <h1>🚀 WebOS Funcionando!</h1>\n  <button onclick="salvar()">Testar Storage</button>\n  <script>\n    function salvar() {\n      let count = Number(localStorage.getItem("clicks") || 0) + 1;\n      localStorage.setItem("clicks", count);\n      alert("Cliques salvos no VFS: " + count);\n    }\n  <\/script>\n</body>\n</html>' 
+                        content: '<!DOCTYPE html>\n<html>\n<head>\n  <style>body{font-family:sans-serif; text-align:center; padding:50px;}</style>\n</head>\n<body>\n  <h1>🚀 WebOS Funcionando!</h1>\n  <p>Este é um exemplo de página HTML</p>\n</body>\n</html>'
                     }
                 };
             }
